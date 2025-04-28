@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulatore di Market Hindsight</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .input-label {
+            @apply block text-sm font-semibold text-gray-800 mb-1;
+        }
+        .input-field {
+            @apply mt-1 block w-full px-3 py-2 bg-white border border-gray-400 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150 ease-in-out;
+        }
+        .button-primary {
+            @apply w-full inline-flex items-center justify-center py-3 px-4 border border-transparent shadow-lg text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed;
+        }
+        /* Stile leggermente diverso per il pulsante secondario */
+        .button-secondary {
+             @apply w-full inline-flex items-center justify-center py-3 px-4 border border-indigo-600 shadow-md text-sm font-medium rounded-lg text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed;
+        }
+        .card {
+            @apply bg-white shadow-xl rounded-xl p-6 border border-gray-200;
+        }
+        .result-value {
+            @apply text-3xl font-bold text-indigo-700 mt-1;
+        }
+        .result-label {
+            @apply text-sm font-medium text-gray-600;
+        }
+        #chartContainer {
+            position: relative;
+            height: 55vh;
+            width: 100%;
+            max-width: 800px;
+            margin: 1rem auto;
+        }
+        canvas {
+            display: block;
+            box-sizing: border-box;
+            height: 100% !important;
+            width: 100% !important;
+        }
+        .button-container {
+             /* Usa flex per affiancare i pulsanti su schermi medi e grandi */
+            @apply mt-8 pt-6 border-t border-gray-200 flex flex-col sm:flex-row gap-3;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-6 md:p-8">
+
+    <div class="max-w-5xl mx-auto">
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-10">Simulatore di Market Hindsight</h1>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+            <div class="lg:col-span-1 card">
+                <h2 class="text-xl font-bold text-gray-800 mb-5 border-b pb-2">Impostazioni</h2>
+
+                <div class="mb-4">
+                    <label for="initialInvestment" class="input-label">Investimento Iniziale (€):</label>
+                    <input type="number" id="initialInvestment" value="10000" min="100" step="100" class="input-field">
+                </div>
+
+                <div class="mb-4">
+                    <label for="yearsToSimulate" class="input-label">Anni da Simulare:</label>
+                    <input type="number" id="yearsToSimulate" value="20" min="5" max="40" class="input-field">
+                    <p class="text-xs text-gray-500 mt-1">Inserisci un valore tra 5 e 40.</p>
+                </div>
+
+                 <div class="mb-4">
+                    <label for="missedBestDays" class="input-label">Migliori Giorni Mancati:</label>
+                    <select id="missedBestDays" class="input-field">
+                        <option value="0">0 giorni</option>
+                        <option value="5">5 giorni</option>
+                        <option value="10" selected>10 giorni</option>
+                        <option value="20">20 giorni</option>
+                        <option value="30">30 giorni</option>
+                        <option value="40">40 giorni</option>
+                        <option value="50">50 giorni</option>
+                    </select>
+                 </div>
+
+                <div class="button-container">
+                     <button id="runNewSimulation" class="button-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                         Avvia Nuova Simulazione
+                    </button>
+                     <button id="recalculateResults" class="button-secondary" disabled>
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                           <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-6m-6 2h6m-6-4h6M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                         </svg>
+                         Ricalcola Risultati
+                    </button>
+                </div>
+                 <p id="recalculateNote" class="text-xs text-gray-500 mt-3 hidden">Nota: Il ricalcolo usa gli stessi dati casuali generati precedentemente, modificando solo investimento e giorni mancati.</p>
+            </div>
+
+            <div class="lg:col-span-2 card">
+                <h2 class="text-xl font-bold text-gray-800 mb-5 border-b pb-2">Risultati</h2>
+                 <div id="chartContainer">
+                    <canvas id="investmentChart"></canvas>
+                 </div>
+                 <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6 text-center bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div>
+                        <p class="result-label">Valore Finale (Sempre Investito)</p>
+                        <p id="finalValueStayedInvested" class="result-value">€0</p>
+                    </div>
+                    <div>
+                        <p class="result-label">Valore Finale (Giorni Migliori Mancati)</p>
+                        <p id="finalValueMissedDays" class="result-value">€0</p>
+                    </div>
+                 </div>
+                 <p id="differenceMessage" class="mt-5 text-center text-md font-semibold text-red-700"></p>
+            </div>
+        </div>
+
+        <div class="text-center text-xs text-gray-600 mt-10 px-4">
+            <p><strong>Disclaimer:</strong> Questo strumento è solo a scopo illustrativo e utilizza dati di rendimento giornalieri simulati e semplificati (basati su un rendimento annuo atteso del 7% e una volatilità annua del 15%). Non rappresenta alcun investimento specifico e non costituisce una consulenza finanziaria. I rendimenti passati non sono indicativi di risultati futuri. L'investimento comporta rischi, inclusa la possibile perdita del capitale.</p>
+        </div>
+    </div>
+
+    <script>
+        // Riferimenti agli elementi del DOM
+        const initialInvestmentEl = document.getElementById('initialInvestment');
+        const yearsToSimulateEl = document.getElementById('yearsToSimulate');
+        const missedBestDaysEl = document.getElementById('missedBestDays');
+        const runNewSimulationBtn = document.getElementById('runNewSimulation');
+        const recalculateBtn = document.getElementById('recalculateResults');
+        const recalculateNoteEl = document.getElementById('recalculateNote');
+        const finalValueStayedInvestedEl = document.getElementById('finalValueStayedInvested');
+        const finalValueMissedDaysEl = document.getElementById('finalValueMissedDays');
+        const differenceMessageEl = document.getElementById('differenceMessage');
+        const ctx = document.getElementById('investmentChart').getContext('2d');
+        let investmentChart = null;
+
+        // Variabili per memorizzare i dati dell'ultima simulazione generata
+        let currentAllReturns = null;
+        let currentSortedReturns = null;
+        let currentTotalDays = 0;
+        let currentYears = 0;
+
+        const tradingDaysPerYear = 252;
+
+        // --- Dati Simulati ---
+        function generateSimulatedData(years) {
+            currentYears = years;
+            const totalDays = years * tradingDaysPerYear;
+            let dailyReturns = [];
+            const annualMeanReturn = 0.07;
+            const annualVolatility = 0.15;
+            const dailyMeanReturn = Math.pow(1 + annualMeanReturn, 1 / tradingDaysPerYear) - 1;
+            const dailyStdDev = annualVolatility / Math.sqrt(tradingDaysPerYear);
+
+            for (let i = 0; i < totalDays; i++) {
+                let u1 = Math.random();
+                let u2 = Math.random();
+                let z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+                let dailyReturn = dailyMeanReturn + dailyStdDev * z;
+                dailyReturns.push(Math.max(-1.0, dailyReturn));
+            }
+
+             let returnsWithIndices = dailyReturns.map((ret, index) => ({ return: ret, index: index }));
+             returnsWithIndices.sort((a, b) => b.return - a.return);
+
+             currentAllReturns = dailyReturns;
+             currentSortedReturns = returnsWithIndices;
+             currentTotalDays = totalDays;
+
+             recalculateBtn.disabled = false;
+             recalculateNoteEl.classList.remove('hidden');
+
+             return {
+                allReturns: currentAllReturns,
+                sortedReturns: currentSortedReturns,
+                totalDays: currentTotalDays
+             };
+        }
+
+        // --- Logica di Simulazione ---
+        function runInvestmentSimulation(initialAmount, returnsData) {
+            let currentValue = initialAmount;
+            const growthPath = [initialAmount];
+            returnsData.forEach(dailyReturn => {
+                currentValue *= (1 + dailyReturn);
+                currentValue = Math.max(0, currentValue);
+                growthPath.push(currentValue);
+            });
+            return {
+                finalValue: currentValue,
+                growthPath: growthPath
+            };
+        }
+
+         // --- Funzione per Calcolare e Mostrare Risultati ---
+         function calculateAndDisplayResults(initialInvestment, numMissedBestDays) {
+             if (!currentAllReturns) {
+                 console.error("Nessun dato di simulazione disponibile per il calcolo.");
+                 return;
+             }
+
+             const stayedInvestedResult = runInvestmentSimulation(initialInvestment, currentAllReturns);
+
+             let returnsMissingBest = [...currentAllReturns];
+             for(let i = 0; i < numMissedBestDays; i++) {
+                 if (i < currentSortedReturns.length) {
+                     const indexToRemove = currentSortedReturns[i].index;
+                     returnsMissingBest[indexToRemove] = 0;
+                 }
+             }
+             const missedDaysResult = runInvestmentSimulation(initialInvestment, returnsMissingBest);
+
+             const formatter = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+             finalValueStayedInvestedEl.textContent = formatter.format(stayedInvestedResult.finalValue);
+             finalValueMissedDaysEl.textContent = formatter.format(missedDaysResult.finalValue);
+
+             const difference = stayedInvestedResult.finalValue - missedDaysResult.finalValue;
+              if (numMissedBestDays > 0 && difference > 1) {
+                  differenceMessageEl.textContent = `Mancando i ${numMissedBestDays} giorni migliori, il valore finale è inferiore di ${formatter.format(difference)}.`;
+              } else if (numMissedBestDays > 0) {
+                  differenceMessageEl.textContent = `Mancando i ${numMissedBestDays} giorni migliori, l'impatto in questa simulazione è stato minimo o nullo.`;
+              } else {
+                  differenceMessageEl.textContent = '';
+              }
+
+             updateChart(stayedInvestedResult.growthPath, missedDaysResult.growthPath, numMissedBestDays, currentYears, currentTotalDays);
+         }
+
+
+        // --- Gestore per Nuova Simulazione ---
+        function handleNewSimulation() {
+            const initialInvestment = parseFloat(initialInvestmentEl.value);
+            const years = parseInt(yearsToSimulateEl.value);
+            const numMissedBestDays = parseInt(missedBestDaysEl.value);
+
+            if (isNaN(initialInvestment) || initialInvestment <= 0) {
+                alert("Per favore, inserisci un importo di investimento iniziale valido (maggiore di 0).");
+                return;
+            }
+             if (isNaN(years) || years < 5 || years > 40) {
+                alert("Per favore, inserisci un numero di anni valido (tra 5 e 40).");
+                return;
+             }
+
+            generateSimulatedData(years);
+            calculateAndDisplayResults(initialInvestment, numMissedBestDays);
+        }
+
+        // --- Gestore per Ricalcolo ---
+        function handleRecalculate() {
+             const initialInvestment = parseFloat(initialInvestmentEl.value);
+             const numMissedBestDays = parseInt(missedBestDaysEl.value);
+
+             if (isNaN(initialInvestment) || initialInvestment <= 0) {
+                 alert("Per favore, inserisci un importo di investimento iniziale valido (maggiore di 0).");
+                 return;
+             }
+              if (!currentAllReturns) {
+                 alert("Per favore, avvia prima una nuova simulazione.");
+                 return;
+              }
+
+             calculateAndDisplayResults(initialInvestment, numMissedBestDays);
+        }
+
+
+        // --- Funzione Grafico (CORRETTA) ---
+        function updateChart(stayedInvestedData, missedDaysData, numMissedBestDays, years, totalDays) {
+            const labels = Array.from({ length: totalDays + 1 }, (_, i) => {
+                 if (i === 0 || i % tradingDaysPerYear === 0) {
+                    return `${Math.floor(i / tradingDaysPerYear)}`;
+                 }
+                 if (i === totalDays && totalDays % tradingDaysPerYear !== 0) {
+                     return `${years}`;
+                 }
+                return '';
+            });
+
+            // Distruggi il grafico precedente se esiste
+            if (investmentChart) {
+                investmentChart.destroy();
+            }
+
+             // --- CORREZIONE: Rimosso il primo new Chart ridondante ---
+
+             // Ricostruisci il grafico con i dati aggiornati
+             investmentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Sempre Investito',
+                            data: stayedInvestedData,
+                            borderColor: 'rgb(79, 70, 229)',
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            borderWidth: 2.5,
+                            pointRadius: 0,
+                            tension: 0.1
+                        },
+                        {
+                            label: `Mancati ${numMissedBestDays} Giorni Migliori`,
+                            data: missedDaysData,
+                            borderColor: 'rgb(220, 38, 38)',
+                            backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                            borderWidth: 2.5,
+                            pointRadius: 0,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            title: { display: true, text: 'Valore Investimento (€)', font: { weight: 'bold'} },
+                            ticks: { callback: function(value) { return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value); } }
+                        },
+                        x: {
+                             title: { display: true, text: `Tempo (${years} Anni Simulati)`, font: { weight: 'bold'} },
+                             ticks: {
+                                callback: function(value, index) { const label = this.getLabelForValue(index); return label !== '' ? label : null; },
+                                autoSkip: false, maxRotation: 0, minRotation: 0
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            mode: 'index', intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed.y !== null) { label += new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(context.parsed.y); }
+                                    return label;
+                                }
+                            }
+                        },
+                        legend: { position: 'bottom', labels: { padding: 20 } }
+                    },
+                    interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                }
+            });
+        }
+
+        // --- Event Listener ---
+        runNewSimulationBtn.addEventListener('click', handleNewSimulation);
+        recalculateBtn.addEventListener('click', handleRecalculate);
+
+        // Esegui la prima simulazione al caricamento iniziale
+         window.onload = () => {
+             handleNewSimulation();
+             window.addEventListener('resize', () => {
+                 if(investmentChart) {
+                     setTimeout(() => investmentChart.resize(), 50);
+                 }
+             });
+         };
+
+    </script>
+
+</body>
+</html>
